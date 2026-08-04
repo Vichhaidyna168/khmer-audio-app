@@ -1,99 +1,33 @@
+
 import streamlit as st
-import datetime
 
-# 1. Page Config (រៀបចំទម្រង់អេក្រង់)
-st.set_page_config(page_title="AI Video Dubbing", layout="wide")
+st.set_page_config(page_title="AI Video Dubbing", page_icon="🎬", layout="wide")
 
-# 2. Custom CSS styling (តម្រូវពណ៌ និងប៊ូតុងឱ្យដូចរូបភាព)
-st.markdown("""
-<style>
-    .stApp { background-color: #0d1117; color: #ffffff; }
-    .stTabs [aria-selected="true"] { background-color: #d81b60 !important; color: white !important; }
-    .stButton>button { background-color: #a855f7 !important; color: white !important; font-weight: bold !important; border-radius: 8px !important; border: none !important; width: 100%; }
-    .stDownloadButton>button { background-color: #10b981 !important; color: white !important; font-weight: bold !important; border-radius: 8px !important; border: none !important; width: 100%; }
-</style>
-""", unsafe_allow_html=True)
+st.title("🎬 AI Video Dubbing App")
+st.write("ស្វាគមន៍មកកាន់កម្មវិធី AI Video Dubbing")
 
-# 3. SIDEBAR - កន្លែង Setting ខាងឆ្វេង (រូប 10, 11, 12)
 with st.sidebar:
-    st.header("🌎 Target Language (ភាសាបកប្រែ)")
-    st.selectbox("ជ្រើសរើសភាសា (Select Language):", ["Khmer (ខ្មែរ)", "English", "Chinese"], index=0)
-    
+    st.header("🌐 Target Language")
+    language = st.selectbox("ជ្រើសរើសភាសា", ["Khmer", "English"])
     st.markdown("---")
     st.header("🔑 API Keys Manager")
-    api_key = st.text_area("Paste Gemini API Keys (One per line)", placeholder="")
+    api_key = st.text_input("Paste Gemini API Key", type="password")
     if not api_key:
-        st.warning("⚠️ សូមបញ្ចូល API Key ក្នុងប្រអប់ខាងឆ្វេងជាមុនសិន!")
+        st.warning("⚠️ សូមបញ្ចូល API Key ក្នុងប្រអប់ខាងលើ!")
 
-    st.markdown("---")
-    st.header("🎭 Translation Style")
-    st.radio("ជ្រើសរើសប្រព័ន្ធបកប្រែ (Translate API):", ["Gemini Api", "Google Api"], index=0)
+tabs = st.tabs(["Upload Video", "Processing", "Export"])
 
-    st.markdown("---")
-    st.header("⚙️ Audio Sync Mode")
-    st.write("តម្រឹមល្បឿនអាន៖")
-    st.radio("", ["Speed Up Only (លឿន)", "Speed Up & Slow Down (លឿន និង យឺត)"], index=0, key="sync")
+with tabs[0]:
+    st.subheader("១. បញ្ចូលវីដេអូ (Upload Video)")
+    uploaded_file = st.file_uploader("ជ្រើសរើសវីដេអូ ឬសំឡេង", type=["mp4", "mp3", "wav"])
+    if uploaded_file:
+        st.video(uploaded_file)
 
-    st.markdown("---")
-    st.header("🗣️ Voice Mode (ជម្រើសសំឡេង)")
-    st.write("កំណត់សម្រាប់ Tab 1 & Tab 2៖")
-    st.radio("", ["Auto (ប្រុស/ស្រី តាម Tag)", "All Male (ប្រុសសុទ្ធ)", "All Female (ស្រីសុទ្ធ)"], index=0, key="voice")
+with tabs[1]:
+    st.subheader("២. បំប្លែង និងបកប្រែ")
+    if st.button("ចាប់ផ្តើមបកប្រែ (Start Dubbing)"):
+        st.success("កំពុងដំណើរការ...")
 
-    st.markdown("---")
-    st.header("🧠 AI Model (ម៉ូដែល AI)")
-    st.radio("ជ្រើសរើសម៉ូដែល (Select Model):", [
-        "gemini-3.5-flash",
-        "gemini-3.6-flash",
-        "gemini-3.1-pro",
-        "gemini-3.5-flash-preview",
-        "gemini-3.5-pro-preview",
-        "gemini-3-flash-preview"
-    ], index=0)
-
-# 4. MAIN CONTENT - ផ្ទៃកណ្តាល (រូប 7, 8, 9)
-tab1, tab2, tab3 = st.tabs(["🎬 AI Video Dubbing", "🌐 AI SRT Translator", "📜 Subtitle to S..."])
-
-with tab1:
-    # ទី១៖ កន្លែង Upload វីដេអូ
-    st.title("1️⃣ Generate Subtitles (Khmer (ខ្មែរ))")
-    st.write("Upload Video")
-    uploaded_file = st.file_uploader("", type=["mp4", "mov", "avi", "mkv"], label_visibility="collapsed")
-    st.caption("200MB per file • MP4, MOV, AVI, MKV")
-
-    # ទីពីរ៖ កន្លែងដាក់/សម្រួលអត្ថបទ SRT
-    st.markdown("### Generated SRT from Video")
-    st.write("ពិនិត្យ និងកែសម្រួលអត្ថបទ SRT ទីនេះមុនពេលបញ្ចូលសំឡេង:")
-    sample_srt = "1\n00:00:00,500 --> 00:00:02,000\n[M] មានរឿងធំហើយចៅហ្វាយ!\n\n2\n00:00:02,100 --> 00:00:04,500\n[M] ភ័យស្អី! រញ្ជួយដី ឬមេឃរលំង្កើត?\n\n3\n00:00:04,600 --> 00:00:06,500\n[M] បងប្អូន... ត្រូវគេវាយខ្ទេចអស់ហើយ!"
-    srt_content = st.text_area("", value=sample_srt, height=200, label_visibility="collapsed")
-
-    st.markdown("---")
-
-    # ទីបី៖ កន្លែង Generate ចេញជា MP3
-    st.title("2️⃣ AI Dubbing (Edge TTS Studio)")
-    if st.button("🎙️ Generate Dubbed Audio (MP3)"):
-        st.success("✅ Audio Dubbing Complete!")
-
-    st.audio("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", format="audio/mp3")
-
-    st.markdown("---")
-
-    # ទីបួន៖ កន្លែង Download MP3
-    st.markdown("### 💾 Download Options")
-    st.write("📝 បញ្ចូលឈ្មោះ File ដែលអ្នកចង់បាន (Optional):")
-    file_custom_name = st.text_input("", placeholder="ឧទាហរណ៍: Episode_01_Dubbed", label_visibility="collapsed")
-
-    current_time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    default_filename = f"AI_Dubbed_Output_({current_time}).mp3"
-
-    st.download_button(
-        label=f"🎵 Download MP3 ({default_filename})",
-        data=b"audio_bytes",
-        file_name=default_filename,
-        mime="audio/mp3"
-    )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # ទីប្រាំ៖ កន្លែង Clear ធ្វើថ្មី
-    if st.button("🗑️ ធ្វើថ្មី (Clear Video Project)"):
-        st.rerun()
+with tabs[2]:
+    st.subheader("៣. លទ្ធផលចុងក្រោយ")
+    st.write("វីដេអូដែលបានបញ្ចូលសំឡេងរួចរាល់នឹងបង្ហាញនៅទីនេះ។")
