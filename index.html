@@ -1,220 +1,72 @@
+
 <!DOCTYPE html>
 <html lang="km">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Khmer SRT & Audio Studio</title>
+    <title>Khmer Audio Generator</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 15px; background-color: #f2f2f7; color: #1c1c1e; }
-        .card { background: #ffffff; padding: 16px; margin-bottom: 16px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        h2 { font-size: 15px; margin-top: 0; color: #007aff; }
-        label { font-weight: 600; display: block; margin-bottom: 6px; font-size: 13px; color: #3a3a3c; }
-        input[type="file"], input[type="text"], textarea, select { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #c7c7cc; border-radius: 10px; box-sizing: border-box; font-size: 14px; background: #fafafa; }
-        textarea { height: 140px; font-family: monospace; resize: vertical; }
-        video { width: 100%; border-radius: 10px; margin-top: 8px; }
-        button { background-color: #007aff; color: white; border: none; padding: 14px; width: 100%; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin-bottom: 8px; }
-        button.danger { background-color: #ff3b30; }
-        button.secondary { background-color: #5856d6; }
-        .audio-preview { margin-top: 10px; width: 100%; }
-        .status { font-size: 13px; color: #8e8e93; margin-top: 5px; text-align: center; }
+        body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: auto; background-color: #f4f7f6; }
+        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { color: #333; text-align: center; margin-top: 0; }
+        textarea { width: 100%; height: 120px; padding: 10px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; }
+        select, button { width: 100%; padding: 12px; margin-top: 12px; border-radius: 8px; border: none; font-size: 16px; }
+        select { border: 1px solid #ccc; background: white; }
+        button { background-color: #007bff; color: white; font-weight: bold; cursor: pointer; }
+        audio { width: 100%; margin-top: 15px; }
     </style>
 </head>
 <body>
 
-    <h1 style="text-align: center; font-size: 18px; margin-bottom: 20px;">AI Video & SRT Audio Converter</h1>
+<div class="card">
+    <h2>🎙️ បម្លែងអក្សរទៅជាសំឡេងខ្មែរ (Edge TTS - Free)</h2>
+    
+    <label><b>បញ្ចូលអត្ថបទខ្មែរ៖</b></label>
+    <textarea id="textInput" placeholder="វាយ ឬ Paste អត្ថបទខ្មែរនៅទីនេះ..."></textarea>
 
-    <!-- ១. ដាក់វីដេអូចូល -->
-    <div class="card">
-        <h2>១. វីដេអូ (មិនកំណត់ទំហំ)</h2>
-        <input type="file" id="videoInput" accept="video/*">
-        <video id="videoPreview" controls style="display:none;"></video>
+    <label><b>ជ្រើសរើសសំឡេង៖</b></label>
+    <select id="voiceSelect">
+        <option value="km-KH-PisethNeural">សំឡេងប្រុស (Piseth)</option>
+        <option value="km-KH-SreymomNeural">សំឡេងស្រី (Sreymom)</option>
+    </select>
+
+    <button onclick="generateSpeech()">🔊 បម្លែងទៅជាសំឡេង MP3</button>
+
+    <div id="result" style="display:none;">
+        <h3 style="margin-bottom:5px;">សំឡេងដែលបានបង្កើត៖</h3>
+        <audio id="audioPlayer" controls></audio>
     </div>
+</div>
 
-    <!-- ២ & ៣. ដាក់ និង កែសម្រួល SRT -->
-    <div class="card">
-        <h2>២ & ៣. អត្ថបទ SRT និង ការកែសម្រួល</h2>
-        <input type="file" id="srtInput" accept=".srt,.txt">
-        <label for="srtText">ខ្លឹមសារអត្ថបទ (អាចកែប្រែបាន):</label>
-        <textarea id="srtText" placeholder="អត្ថបទ SRT នឹងបង្ហាញនៅទីនេះ..."></textarea>
-        <button onclick="cleanSRTWithGemini()" class="secondary">✨ ប្រើ Gemini AI សម្អាត និងតម្រូវអត្ថបទឲ្យត្រូវស្តង់ដារ</button>
-    </div>
+<script>
+async function generateSpeech() {
+    const text = document.getElementById('textInput').value;
+    const voice = document.getElementById('voiceSelect').value;
+    
+    if (!text) {
+        alert('សូមបញ្ចូលអត្ថបទជាមុនសិន!');
+        return;
+    }
 
-    <!-- ៤, ៥, ៦. បម្លែងជា AI MP3, កំណត់ឈ្មោះ និង Download -->
-    <div class="card">
-        <h2>៤, ៥, ៦. កំណត់ API, ឈ្មោះហ្វាល់ & បម្លែង MP3</h2>
+    const button = document.querySelector('button');
+    button.innerText = '⏳ កំពុងបង្កើតសំឡេង...';
+    button.disabled = true;
+
+    try {
+        const url = `https://api.streamelements.com/kappa/v2/speech?voice=${voice}&text=${encodeURIComponent(text)}`;
+        const audioPlayer = document.getElementById('audioPlayer');
+        audioPlayer.src = url;
         
-        <label for="apiProvider">ជ្រើសរើស AI Service:</label>
-        <select id="apiProvider">
-            <option value="openai">OpenAI (TTS-1) - សំឡេងច្បាស់</option>
-            <option value="google">Google Cloud TTS - គាំទ្រភាសាខ្មែរចំ</option>
-        </select>
+        document.getElementById('result').style.display = 'block';
+        audioPlayer.play();
+    } catch (error) {
+        alert('មានបញ្ហាក្នុងការបង្កើតសំឡេង សូមសាកល្បងម្តងទៀត!');
+    } finally {
+        button.innerText = '🔊 បម្លែងទៅជាសំឡេង MP3';
+        button.disabled = false;
+    }
+}
+</script>
 
-        <label for="apiKey">API Key (Gemini / OpenAI / Google):</label>
-        <input type="text" id="apiKey" placeholder="បិទភ្ជាប់ (Paste) API Key របស់អ្នកនៅទីនេះ">
-
-        <label for="fileName">៥. កំណត់ឈ្មោះហ្វាល់ MP3:</label>
-        <input type="text" id="fileName" value="khmer_voice_ai">
-
-        <button onclick="convertToSpeech()">៤. បម្លែងទៅជា MP3</button>
-        <div id="statusText" class="status"></div>
-        
-        <div id="audioOutput" style="display:none; margin-top: 15px;">
-            <label>សំឡេងដែលបានបង្កើតរួច៖</label>
-            <audio id="audioPlayer" controls class="audio-preview"></audio>
-            <br><br>
-            <a id="downloadBtn" download="audio.mp3"><button style="background-color: #34c759;">៦. Download ហ្វាល់ MP3</button></a>
-        </div>
-    </div>
-
-    <!-- ៧. លុបឯកសារចាស់ -->
-    <div class="card">
-        <h2>៧. សម្អាតទិន្នន័យ</h2>
-        <button onclick="clearAll()" class="danger">៧. លុបឯកសារចាស់ចេញទាំងអស់</button>
-    </div>
-
-    <script>
-        // ១. បង្ហាញ Preview វីដេអូ
-        document.getElementById('videoInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const videoNode = document.getElementById('videoPreview');
-                videoNode.src = URL.createObjectURL(file);
-                videoNode.style.display = 'block';
-            }
-        });
-
-        // ២. អានឯកសារ SRT
-        document.getElementById('srtInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(evt) {
-                    let text = evt.target.result;
-                    let cleanText = text.replace(/\d+\r?\n\d\d:\d\d:\d\d,\d\d\d --> \d\d:\d\d:\d\d,\d\d\d\r?\n/g, '');
-                    document.getElementById('srtText').value = cleanText.trim();
-                };
-                reader.readAsText(file);
-            }
-        });
-
-        // ៣. ប្រើ Gemini API កែសម្រួលអត្ថបទ
-        async function cleanSRTWithGemini() {
-            const apiKey = document.getElementById('apiKey').value;
-            const text = document.getElementById('srtText').value;
-
-            if (!apiKey) { alert('សូមបញ្ជូល Gemini API Key ជាមុនសិន!'); return; }
-            if (!text) { alert('សូមបញ្ចូលអត្ថបទ SRT ជាមុនសិន!'); return; }
-
-            document.getElementById('statusText').innerText = "Gemini កំពុងកែសម្រួលអត្ថបទ...";
-
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-            const prompt = `សូមកែសម្រួលអត្ថបទខាងក្រោមជាភាសាខ្មែរ ឲ្យមានឃ្លោងឃ្លាត្រឹមត្រូវ ងាយស្រួលអាន គ្មានសញ្ញាប្លែកៗ និងសមស្របសម្រាប់ការបម្លែងជាសំឡេង (Text-to-Speech)។ រក្សាខ្លឹមសារដើមទាំងស្រុង៖\n\n${text}`;
-
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                });
-                const data = await response.json();
-                const resultText = data.candidates[0].content.parts[0].text;
-                document.getElementById('srtText').value = resultText;
-                document.getElementById('statusText').innerText = "កែសម្រួលអត្ថបទជោគជ័យ!";
-            } catch (err) {
-                alert("Gemini Error: " + err.message);
-                document.getElementById('statusText').innerText = "";
-            }
-        }
-
-        // ៤. បម្លែងទៅជា MP3
-        async function convertToSpeech() {
-            const text = document.getElementById('srtText').value;
-            const apiKey = document.getElementById('apiKey').value;
-            const provider = document.getElementById('apiProvider').value;
-            const customName = document.getElementById('fileName').value || 'audio_khmer';
-
-            if (!text || !apiKey) {
-                alert('សូមបញ្ជូលអត្ថបទ និង API Key ឲ្យបានត្រឹមត្រូវ!');
-                return;
-            }
-
-            document.getElementById('statusText').innerText = "កំពុងបម្លែងទៅជាសំឡេង MP3...";
-
-            if (provider === 'openai') {
-                try {
-                    const response = await fetch('https://api.openai.com/v1/audio/speech', {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${apiKey}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            model: 'tts-1',
-                            input: text,
-                            voice: 'alloy'
-                        })
-                    });
-
-                    if (!response.ok) throw new Error('OpenAI API Error');
-
-                    const blob = await response.blob();
-                    const audioUrl = URL.createObjectURL(blob);
-                    setupAudioOutput(audioUrl, customName);
-                } catch (err) {
-                    alert('OpenAI Error: ' + err.message);
-                }
-            } else if (provider === 'google') {
-                const url = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`;
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            input: { text: text },
-                            voice: { languageCode: 'km-KH', ssmlGender: 'NEUTRAL' },
-                            audioConfig: { audioEncoding: 'MP3' }
-                        })
-                    });
-                    const result = await response.json();
-                    if (result.audioContent) {
-                        const audioSrc = 'data:audio/mp3;base64,' + result.audioContent;
-                        setupAudioOutput(audioSrc, customName);
-                    } else {
-                        alert('Google TTS Error: ' + JSON.stringify(result.error));
-                    }
-                } catch (err) {
-                    alert('Google TTS Error: ' + err.message);
-                }
-            }
-        }
-
-        function setupAudioOutput(url, filename) {
-            const audioPlayer = document.getElementById('audioPlayer');
-            const downloadBtn = document.getElementById('downloadBtn');
-
-            audioPlayer.src = url;
-            downloadBtn.href = url;
-            downloadBtn.download = `${filename}.mp3`;
-
-            document.getElementById('audioOutput').style.display = 'block';
-            document.getElementById('statusText').innerText = "បម្លែងរួចរាល់!";
-        }
-
-        // ៧. លុប និង សម្អាត
-        function clearAll() {
-            document.getElementById('videoInput').value = '';
-            document.getElementById('srtInput').value = '';
-            document.getElementById('srtText').value = '';
-            document.getElementById('fileName').value = 'khmer_voice_ai';
-            document.getElementById('statusText').innerText = '';
-            
-            const videoNode = document.getElementById('videoPreview');
-            videoNode.src = '';
-            videoNode.style.display = 'none';
-
-            document.getElementById('audioOutput').style.display = 'none';
-            alert('ទិន្នន័យត្រូវបានជម្រះរួចរាល់!');
-        }
-    </script>
 </body>
 </html>
