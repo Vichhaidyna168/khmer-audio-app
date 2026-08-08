@@ -1,0 +1,4 @@
+streamlit>=1.30.0
+google-genai>=0.1.0
+edge-tts>=6.1.9
+pydub>=0.25.1
