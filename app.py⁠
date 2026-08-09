@@ -1,15 +1,4 @@
-import streamlit as st
-import asyncio
-import edge_tts
-import tempfile
-import os
-from pydub import AudioSegment
 
-st.set_page_config(
-    page_title="Vichhai Dubber Pro",
-    page_icon="🎬",
-    layout="wide",
-    initial_sidebar_state="expanded"
 )
 
 st.markdown("""
