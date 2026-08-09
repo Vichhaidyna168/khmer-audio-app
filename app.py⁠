@@ -1,2 +1,121 @@
+import streamlit as st
+import asyncio
+import edge_tts
+import tempfile
+import os
+from pydub import AudioSegment
+
+st.set_page_config(
+    page_title="Vichhai Dubber Pro",
+    page_icon="🎬",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+st.markdown("""
+<style>
+    .stApp { background-color: #0d0e15; color: #ffffff; }
+    .main-banner {
+        border: 2px solid #a855f7; border-radius: 16px; padding: 24px;
+        text-align: center; background: linear-gradient(180deg, #13111c 0%, #0d0e15 100%);
+        margin-bottom: 25px;
+    }
+    .main-banner h1 { color: #ffffff; font-size: 32px; margin-bottom: 8px; }
+    .main-banner p { color: #38bdf8; font-weight: 700; font-size: 13px; margin: 0; }
+    .step-header { font-size: 24px; font-weight: 700; margin: 20px 0 15px 0; }
+    .user-card { border: 1.5px solid #0284c7; background-color: #0f172a; border-radius: 12px; padding: 15px; }
+    .success-box { background-color: #581c87; border: 1px solid #7e22ce; color: #ffffff; padding: 12px; border-radius: 8px; margin: 15px 0; }
+    .stButton>button { width: 100%; border-radius: 8px; font-weight: 600; }
+</style>
+""", unsafe_allow_html=True)
+
+with st.sidebar:
+    st.markdown("""
+    <div class="user-card">
+        <h3>👋 Vichhai Dubber Pro</h3>
+        <p><b>ROLE:</b> ADMIN_USER</p>
+        <p>📅 <b>PLAN:</b> 2026-12-31</p>
+        <p>⏳ <b>365 DAYS LEFT</b></p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("🚪 ចាកចេញ (Logout)", key="logout"):
+        st.info("បានចាកចេញពីប្រព័ន្ធ")
+
+    st.divider()
+    target_lang = st.selectbox("🌐 Target Language:", ["Khmer (ខ្មែរ)", "English", "Thai", "Chinese"])
+    st.divider()
+    api_keys_text = st.text_area("🔑 Paste Gemini API Keys", placeholder="AIzaSy...", height=80)
+    st.divider()
+    trans_style = st.radio("🎭 Translation Style", ["Gemini Api", "Google Api"])
+    st.divider()
+    sync_mode = st.radio("⚙️ Audio Sync Mode", ["Speed Up Only (លឿន)", "Speed Up & Slow Down"])
+    st.divider()
+    voice_mode = st.radio("🗣️ Voice Mode", ["Auto (ប្រុស/ស្រី)", "All Male", "All Female"])
+    st.divider()
+    ai_model = st.radio("🧠 AI Model", ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-flash"])
+
+st.markdown("""
+<div class="main-banner">
+    <h1>Vichhai Dubber Pro</h1>
+    <p>GLOBAL AI DUBBING & SUBTITLING WORKSTATION</p>
+</div>
+""", unsafe_allow_html=True)
+
+tab1, tab2, tab3 = st.tabs(["🎬 AI Video Dubbing", "🌐 AI SRT Translator", "📜 Subtitle to Audio"])
+
+async def generate_audio_file(text, voice_name, output_path):
+    communicate = edge_tts.Communicate(text, voice_name)
+    await communicate.save(output_path)
+
+with tab1:
+    st.markdown('<div class="step-header">1️⃣ Generate Subtitles (Khmer (ខ្មែរ))</div>', unsafe_allow_html=True)
+    uploaded_video = st.file_uploader("Upload Video", type=["mp4", "mov", "avi", "mkv"])
+    
+    sample_srt = "1\n00:00:01,000 --> 00:00:04,000\nជម្រាបសួរ! ស្វាគមន៍មកកាន់ Vichhai Dubber Pro។"
+    srt_content = st.text_area("Generated SRT from Video", value=sample_srt, height=120)
+
+    st.divider()
+    st.markdown('<div class="step-header">2️⃣ AI Dubbing (Edge TTS Studio)</div>', unsafe_allow_html=True)
+    
+    voice_choice = st.selectbox("ជ្រើសរើសសំឡេង (Khmer Voice):", ["km-KH-PisethNeural", "km-KH-SreymomNeural"])
+    
+    if st.button("🎙️ Generate Dubbed Audio (MP3)", type="primary"):
+        if not srt_content.strip():
+            st.warning("សូមបញ្ចូលអត្ថបទជាមុនសិន!")
+        else:
+            with st.spinner("កំពុងបង្កើតសំឡេង..."):
+                try:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
+                        output_file = tmp_file.name
+
+                    lines = [line for line in srt_content.split('\n') if not line.isdigit() and '-->' not in line and line.strip()]
+                    clean_text = " ".join(lines)
+                    
+                    asyncio.run(generate_audio_file(clean_text, voice_choice, output_file))
+
+                    st.markdown("""<div class="success-box">✅ Audio Dubbing Complete!</div>""", unsafe_allow_html=True)
+                    st.audio(output_file, format="audio/mp3")
+                    
+                    st.divider()
+                    custom_filename = st.text_input("📝 បញ្ចូលឈ្មោះ File ដែលអ្នកចង់បាន (Optional):")
+                    final_name = custom_filename.strip() if custom_filename.strip() else "Vichhai_Dubbed_Output"
+                    
+                    with open(output_file, "rb") as f:
+                        st.download_button(
+                            label=f"🎵 Download MP3 ({final_name}.mp3)",
+                            data=f,
+                            file_name=f"{final_name}.mp3",
+                            mime="audio/mp3",
+                            type="primary"
+                        )
+                except Exception as e:
+                    st.error(f"កើតមានបញ្ហា៖ {e}")
+
+with tab2:
+    st.info("🌐 មុខងារបកប្រែឯកសារ SRT ស្វ័យប្រវត្តិ")
+
+with tab3:
+    st.info("📜 មុខងារបំប្លែង Subtitle ទៅជាសំឡេង MP3")
 
   
