@@ -243,7 +243,7 @@ with tab1:
     if st.button("🎙️ Generate Dubbed Audio (MP3)", type="primary"):
         # ក្លែងធ្វើដំណើរការ Progress (គំរូប៉ាទី ២)
         progress_text = st.empty()
-        progress_bar = st.progress(0)
+        progress_bar
         
         async def mock_progress():
             for percent in range(1, 101):
