@@ -8,10 +8,20 @@ from datetime import datetime
 from pydub import AudioSegment
 from google import genai
 from google.genai import types
+import shutil
+import imageio_ffmpeg
+ffmpeg_path = shutil.which("ffmpeg")
+if not ffmpeg_path:
+    ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+
+AudioSegment.converter = ffmpeg_path
+AudioSegment.ffmpeg = ffmpeg_path
+AudioSegment.ffprobe = ffmpeg_path
+os.environ["PATH"] += os.pathsep + os.path.dirname(ffmpeg_path)
 
 # Set page layout
 st.set_page_config(
-    page_title="Matly Dubber Pro",
+    page_title="Vichhai Dubber Pro",
     page_icon="🎬",
     layout="wide"
 )
