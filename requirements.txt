@@ -1,7 +1,4 @@
-streamlit
-edge-tts
-pydub
-google-generativeai⁠
+
 
 
 
