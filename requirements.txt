@@ -1,2 +1,7 @@
+streamlit
+edge-tts
+pydub
+google-generativeai
+audioop-lts
 
 
