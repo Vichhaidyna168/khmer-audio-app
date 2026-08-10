@@ -1,7 +1,7 @@
 streamlit
 edge-tts
 pydub
-google-genai
+google-generativeai⁠
 
 
 
