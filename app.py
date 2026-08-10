@@ -10,7 +10,7 @@ import google.generativeai as genai
 # --- ១. កំណត់ការកំណត់ទូទៅរបស់ទំព័រ (ដូចគំរូ) ---
 # ==========================================
 st.set_page_config(
-    page_title="AI Dubbing studio",
+    page_title=" Dubbing studio",
     page_icon="🎙️",
     layout="centered"
 )
