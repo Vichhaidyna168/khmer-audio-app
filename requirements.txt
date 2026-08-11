@@ -1,1 +1,10 @@
+streamlit
+edge-tts
+pydub
+srt
+google-generativeai
+pyaudioop
+
+
+
 
