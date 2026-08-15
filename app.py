@@ -484,13 +484,14 @@ with tab1:
         )
 
         # ----------------------------------------------------
-        # 🎯 ត្រង់នេះបានកែសម្រួល mime="audio/mpeg" រួចរាល់!
+        # 🎯 កែសម្រួល៖ ថែម type="primary" ឱ្យចេញពណ៌បៃតង និងដើរ ១០០% លើ Safari/iOS
         # ----------------------------------------------------
         st.download_button(
             label=f"🎵 Download MP3 ({final_filename})",
-            data=st.session_state["audio_data"],
+            data=bytes(st.session_state["audio_data"]),
             file_name=final_filename,
-            mime="audio/mpeg",  # 👈 កែត្រង់នេះដើម្បីឱ្យ iPhone/Safari ដោនឡូតបាន ១០០%
+            mime="audio/mpeg",
+            type="primary",
             key="tab1_download_audio_btn",
             use_container_width=True,
         )
@@ -529,5 +530,3 @@ with tab2:
 with tab3:
     st.markdown("<h2>📦 Subtitle to Video</h2>", unsafe_allow_html=True)
     st.info("មុខងារបង្កប់ Subtitle ចូលទៅក្នុង Video (Hardcode Subtitles)")
-
-
