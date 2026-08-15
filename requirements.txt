@@ -1,7 +1,4 @@
-streamlit
-edge-tts
-srt
-google-generativeai
+
 
 
 
