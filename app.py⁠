@@ -1,1 +1,38 @@
+async def generate_synced_audio(srt_raw_text, voice_mode_selected, rate_str="+10%"):
+    clean_srt_input = extract_srt_only(srt_raw_text)
+    try:
+        subs = list(srt.parse(clean_srt_input))
+    except Exception:
+        raise Exception("ទម្រង់ SRT មានបញ្ហា!")
+
+    if not subs:
+        return None
+
+    combined_bytes = bytearray()
+    total_subs = len(subs)
+    
+    for idx, sub in enumerate(subs):
+        raw_content = sub.content.strip()
+        cleaned_text = clean_srt_text(raw_content)
+
+        if cleaned_text:
+            gender = "Male"
+            if voice_mode_selected == "All Female (ស្រីសុទ្ធ)":
+                gender = "Female"
+            elif voice_mode_selected == "Auto (ប្រុស/ស្រី តាម Tag)":
+                if "[F]" in raw_content:
+                    gender = "Female"
+                elif "[M]" in raw_content:
+                    gender = "Male"
+
+            v_code = VOICES.get(gender, VOICES["Male"])
+            # បន្ថែម , ឲ្យ AI ផ្អាកដកដង្ហើមតាមធម្មជាតិ
+            audio_chunk = await get_audio_bytes(cleaned_text + ", ", v_code, rate_str=rate_str)
+
+            if audio_chunk:
+                combined_bytes.extend(audio_chunk)
+
+        await asyncio.sleep(0.01)
+
+    return bytes(combined_bytes)
 
