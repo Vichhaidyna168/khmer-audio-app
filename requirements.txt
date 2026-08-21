@@ -1,7 +1,1 @@
-streamlit
-edge-tts
-google-generativeai
-srt
-nest_asyncio
-gTTS
 
