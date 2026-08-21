@@ -1,1 +1,25 @@
+def get_khmer_gtts_bytes(text):
+    """ទាញយកសំឡេងខ្មែរជាទម្រង់ MP3 ស្អាត មិនបែក Audio Header"""
+    try:
+        clean_text = re.sub(r'[^\w\s\u1780-\u17FF]', '', text).strip()
+        if not clean_text:
+            return b""
+        
+        tts = gTTS(text=clean_text, lang="km", slow=False)
+        
+        # រក្សាទុកក្នុង Temporary File ដើម្បីឱ្យ gTTS ផ្ដាច់ Audio Header ត្រឹមត្រូវ
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
+            tts.save(tmp_file.name)
+            tmp_path = tmp_file.name
+
+        with open(tmp_path, "rb") as f:
+            data = f.read()
+
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+        return data
+    except Exception as e:
+        print(f"gTTS Error: {e}")
+        return b""
 
