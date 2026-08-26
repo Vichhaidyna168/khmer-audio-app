@@ -1,0 +1,343 @@
+import streamlit as st
+import google.generativeai as genai
+import asyncio
+import edge_tts
+import tempfile
+import os
+import re
+
+# ==========================================
+# 1. Page Configuration & Custom UI Style
+# ==========================================
+st.set_page_config(
+    page_title="Vichhai Dubber Pro Workstation",
+    page_icon="🎬",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Custom CSS សម្រាប់ Dark Theme ឱ្យដូចរូបភាពគំរូ
+st.markdown("""
+<style>
+    .stApp {
+        background-color: #0d0f17;
+        color: #ffffff;
+    }
+    .header-box {
+        border: 2px solid #b026ff;
+        border-radius: 16px;
+        padding: 24px;
+        text-align: center;
+        background-color: #0b0d14;
+        margin-bottom: 24px;
+        box-shadow: 0 0 20px rgba(176, 38, 255, 0.35);
+    }
+    .header-title {
+        font-size: 34px;
+        font-weight: 800;
+        color: #ffffff;
+        margin-bottom: 6px;
+    }
+    .header-subtitle {
+        color: #00d2ff;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 1.5px;
+    }
+    [data-testid="stSidebar"] {
+        background-color: #0f121d;
+        border-right: 1px solid #1e2235;
+    }
+    .warning-box {
+        background-color: #2a2510;
+        border: 1px solid #735c0f;
+        color: #ffd54f;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 13px;
+        margin: 10px 0;
+    }
+    .success-box {
+        background-color: #123321;
+        border: 1px solid #1e7e45;
+        color: #63e6be;
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 14px;
+        margin: 10px 0;
+    }
+    div.stButton > button {
+        border-radius: 10px;
+        font-weight: bold;
+        height: 48px;
+        width: 100%;
+    }
+    .stTextArea textarea {
+        background-color: #161926 !important;
+        color: #7ef195 !important;
+        font-family: monospace;
+        border: 1px solid #2a2f45 !important;
+        border-radius: 10px !important;
+    }
+    .stSelectbox div[data-baseweb="select"] {
+        background-color: #161926;
+        color: white;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ==========================================
+# 2. Sidebar Settings (ការកំណត់ប្រព័ន្ធ)
+# ==========================================
+with st.sidebar:
+    st.markdown("### 🌏 Target Language (ភាសាបកប្រែ)")
+    target_lang = st.selectbox(
+        "ជ្រើសរើសភាសា (Select Language):",
+        ["Khmer (ខ្មែរ)", "English", "Chinese", "Thai", "Vietnamese", "French"]
+    )
+    
+    st.divider()
+    
+    st.markdown("### 🔑 API Keys Manager")
+    api_key_input = st.text_area(
+        "Paste Gemini API Keys (One per line)",
+        placeholder="AIzaSy...",
+        height=100
+    )
+    
+    api_keys = [k.strip() for k in api_key_input.split('\n') if k.strip()]
+    active_api_key = api_keys[0] if api_keys else ""
+    
+    if not active_api_key:
+        st.markdown('''
+        <div class="warning-box">
+            ⚠️ សូមបញ្ចូល API Key ក្នុងប្រអប់ខាងលើជាមុនសិន!
+        </div>
+        ''', unsafe_allow_html=True)
+    else:
+        st.markdown(f'''
+        <div class="success-box">
+            ✅ បានភ្ជាប់ Key ចំនួន {len(api_keys)} រួចរាល់!
+        </div>
+        ''', unsafe_allow_html=True)
+        
+    st.divider()
+    
+    st.markdown("### 🎭 Translation Style")
+    trans_style = st.radio("ជ្រើសរើសប្រព័ន្ធបកប្រែ (Translate API):", ["Gemini Api", "Google Api"])
+    
+    st.divider()
+    
+    st.markdown("### ⚙️ Audio Sync Mode")
+    sync_mode = st.radio("តម្រឹមល្បឿនអាន៖", ["Speed Up Only (លឿន)", "Speed Up & Slow Down (លឿន និង យឺត)"])
+    
+    st.divider()
+    
+    st.markdown("### 🗣️ Voice Mode (ជម្រើសសំឡេង)")
+    st.caption("កំណត់សម្រាប់ Tab 1 & Tab 2:")
+    voice_gender = st.radio("ប្រភេទសំឡេង:", ["Auto (ប្រុស/ស្រី តាម Tag)", "km-KH-PisethNeural (ប្រុស)", "km-KH-SreymomNeural (ស្រី)"])
+    
+    st.divider()
+    
+    st.markdown("### 🧠 AI Model (ម៉ូដែល AI)")
+    ai_model = st.selectbox(
+        "ជ្រើសរើសម៉ូដែល (Select Model):",
+        [
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
+            "gemini-2.5-pro"
+        ]
+    )
+
+# ==========================================
+# 3. Header Banner
+# ==========================================
+st.markdown('''
+<div class="header-box">
+    <div class="header-title">Vichhai Dubber Pro</div>
+    <div class="header-subtitle">GLOBAL AI DUBBING & SUBTITLING WORKSTATION</div>
+</div>
+''', unsafe_allow_html=True)
+
+# Navigation Tabs
+tab1, tab2, tab3 = st.tabs(["🎬 AI Video Dubbing", "🌐 AI SRT Translator", "📜 Subtitle to Script"])
+
+# ==========================================
+# Helper Functions
+# ==========================================
+def extract_clean_text(srt_string):
+    lines = srt_string.split('\n')
+    text_lines = []
+    for line in lines:
+        line_s = line.strip()
+        if not line_s.isdigit() and '-->' not in line_s and line_s != '':
+            clean_line = re.sub(r'\[.*?\]', '', line_s).strip()
+            if clean_line:
+                text_lines.append(clean_line)
+    return " ".join(text_lines)
+
+async def generate_edge_tts_audio(text, voice, output_filename):
+    communicate = edge_tts.Communicate(text, voice)
+    await communicate.save(output_filename)
+
+def call_gemini_ai(prompt_text, api_key, model_name):
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(model_name)
+    response = model.generate_content(prompt_text)
+    return response.text
+
+# ==========================================
+# 4. TAB 1: AI Video Dubbing
+# ==========================================
+with tab1:
+    st.markdown("## 1️⃣ Generate Subtitles (Khmer (ខ្មែរ)) 🔗")
+    st.write("Upload Video (Optional)")
+    
+    uploaded_video = st.file_uploader("", type=["mp4", "mov", "mkv"], label_visibility="collapsed", key="v_upload")
+    if uploaded_video:
+        st.video(uploaded_video)
+        
+    srt_input_tab1 = st.text_area(
+        "បញ្ចូល ឬកែសម្រួលអត្ថបទ SRT នៅទីនេះ៖",
+        height=180,
+        value="""1\n00:00:01,000 --> 00:00:02,000\n[M] គ្មានទ្រព្យសម្បត្តិគ្រួសារថែ ជួយទេ...\n\n2\n00:00:03,500 --> 00:00:06,500\n[M] ល្ងាចនេះ ខ្សែសង្វាក់ហិរញ្ញវត្ថុរបស់ សេងថាន មុខជាមានបញ្ហាហើយ!""",
+        key="srt_t1"
+    )
+
+    if st.button("🚀 សម្រួលពាក្យឲ្យត្រូវម៉ោង (Optimize Text)", key="opt_t1"):
+        if not active_api_key:
+            st.error("សូមបញ្ចូល Gemini API Key នៅក្នុង Sidebar ជាមុនសិន!")
+        else:
+            with st.spinner("Gemini កំពុងកែសម្រួលអត្ថបទ..."):
+                try:
+                    p = f"You are an expert subtitle editor. Fix grammar, natural flow, and spoken Khmer style of this SRT subtitle. Keep timestamps exact and intact:\n\n{srt_input_tab1}"
+                    res = call_gemini_ai(p, active_api_key, ai_model)
+                    st.session_state['srt_tab1_opt'] = res
+                    st.success("សម្រួលរួចរាល់!")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+    current_srt_t1 = st.session_state.get('srt_tab1_opt', srt_input_tab1)
+    
+    st.markdown("### Generated SRT from Video")
+    st.caption("ពិនិត្យ និងកែសម្រួលអត្ថបទ SRT ទីនេះមុនពេលបញ្ចូលសំឡេង:")
+    edited_srt_t1 = st.text_area("", value=current_srt_t1, height=180, key="edit_t1")
+
+    st.divider()
+
+    st.markdown("## 2️⃣ AI Dubbing (Edge TTS Studio) 🔗")
+    
+    if st.button("🎙️ Generate Dubbed Audio (MP3)", key="gen_audio_t1"):
+        clean_text = extract_clean_text(edited_srt_t1)
+        if not clean_text:
+            st.warning("មិនមានអត្ថបទសម្រាប់បញ្ចូលសំឡេងទេ!")
+        else:
+            with st.spinner("កំពុងបង្កើតសំឡេងនិយាយ..."):
+                try:
+                    v_code = "km-KH-PisethNeural" if "Piseth" in voice_gender or "Auto" in voice_gender else "km-KH-SreymomNeural"
+                    out_file = "dubbed_t1.mp3"
+                    asyncio.run(generate_edge_tts_audio(clean_text, v_code, out_file))
+                    
+                    st.success("✅ Audio Dubbing Complete!")
+                    with open(out_file, "rb") as f:
+                        a_bytes = f.read()
+                    st.audio(a_bytes, format="audio/mp3")
+                    st.session_state['audio_t1'] = a_bytes
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+    if 'audio_t1' in st.session_state:
+        st.divider()
+        st.markdown("### 💾 Download Options")
+        fname_t1 = st.text_input("📝 បញ្ចូលឈ្មោះ File ដែលអ្នកចង់បាន (Optional):", value="Episode_01_Dubbed", key="fn_t1")
+        
+        st.download_button(
+            label=f"🎵 Download MP3 ({fname_t1}.mp3)",
+            data=st.session_state['audio_t1'],
+            file_name=f"{fname_t1}.mp3",
+            mime="audio/mp3",
+            use_container_width=True
+        )
+
+    st.divider()
+    if st.button("🗑️ ធ្វើថ្មី (Clear Video Project)", key="clr_t1"):
+        st.session_state.clear()
+        st.rerun()
+
+# ==========================================
+# 5. TAB 2: AI SRT Translator
+# ==========================================
+with tab2:
+    st.markdown("## 🌐 AI Subtitle & SRT Translator")
+    st.write("បកប្រែឯកសារ SRT ពីភាសាផ្សេងៗមកជាភាសា target ដែលបានជ្រើសរើស។")
+    
+    raw_srt_t2 = st.text_area("បញ្ចូលកូដ SRT ដើមរឿង (Original SRT):", height=220, placeholder="Paste original SRT here...", key="srt_t2")
+    
+    col_tr1, col_tr2 = st.columns(2)
+    with col_tr1:
+        if st.button("🌍 បកប្រែ SRT ទាំងស្រុង (Translate SRT)", key="btn_tr2"):
+            if not active_api_key:
+                st.error("សូមបញ្ចូល Gemini API Key ជានមុនសិន!")
+            elif not raw_srt_t2.strip():
+                st.warning("សូមបញ្ចូលអត្ថបទ SRT ជាមុនសិន!")
+            else:
+                with st.spinner(f"កំពុងបកប្រែទៅជាភាសា {target_lang}..."):
+                    try:
+                        prompt_tr = f"Translate the following SRT subtitles into natural, fluent {target_lang}. Keep all timestamps, subtitle block numbers, and formatting EXACTLY the same:\n\n{raw_srt_t2}"
+                        translated_res = call_gemini_ai(prompt_tr, active_api_key, ai_model)
+                        st.session_state['trans_srt_res'] = translated_res
+                        st.success("បកប្រែរួចរាល់!")
+                    except Exception as e:
+                        st.error(f"កំហុសក្នុងការបកប្រែ៖ {e}")
+
+    st.markdown("### លទ្ធផល SRT ដែលបានបកប្រែរួច៖")
+    trans_out = st.session_state.get('trans_srt_res', '')
+    final_trans = st.text_area("Translated SRT Output", value=trans_out, height=220, key="trans_out_area")
+
+    if trans_out:
+        st.download_button(
+            label="⬇️ Download Translated .srt File",
+            data=final_trans,
+            file_name="translated_subtitle.srt",
+            mime="text/plain",
+            use_container_width=True
+        )
+
+# ==========================================
+# 6. TAB 3: Subtitle to Script
+# ==========================================
+with tab3:
+    st.markdown("## 📜 Subtitle to Story Script Converter")
+    st.write("បំប្លែងឯកសារ SRT ឱ្យទៅជាអត្ថបទរឿង (Full Story/Script) ងាយស្រួលអាន ឬយករៀបរាប់បន្ត។")
+    
+    srt_script_in = st.text_area("បញ្ចូលអត្ថបទ SRT ដើម្បីបំប្លែងជា Script:", height=200, key="srt_t3")
+    
+    if st.button("📖 បំប្លែងទៅជាអត្ថបទរឿង (Convert to Script)", key="btn_script3"):
+        if not active_api_key:
+            st.error("សូមបញ្ចូល Gemini API Key ជាមុនសិន!")
+        elif not srt_script_in.strip():
+            st.warning("សូមបញ្ចូលអត្ថបទ SRT!")
+        else:
+            with st.spinner("កំពុងរៀបចំអត្ថបទរឿង..."):
+                try:
+                    p_script = f"Convert the following SRT subtitle lines into a clean, well-formatted paragraph story script in {target_lang}. Remove all timestamps, speaker tags, and line numbers:\n\n{srt_script_in}"
+                    script_res = call_gemini_ai(p_script, active_api_key, ai_model)
+                    st.session_state['script_res'] = script_res
+                    st.success("បំប្លែងរួចរាល់!")
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+    st.markdown("### អត្ថបទរឿងពេញលេញ (Story Script Output)៖")
+    script_out = st.session_state.get('script_res', '')
+    final_script = st.text_area("Script Output", value=script_out, height=220, key="script_out_area")
+    
+    if script_out:
+        st.download_button(
+            label="📄 Download Script (.txt)",
+            data=final_script,
+            file_name="story_script.txt",
+            mime="text/plain",
+            use_container_width=True
+        )
